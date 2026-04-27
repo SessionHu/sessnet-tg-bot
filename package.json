@@ -1,0 +1,20 @@
+{
+  "name": "sessnet-tg-bot",
+  "version": "0.0.1",
+  "description": "SessNetwork Looking Glass Bot for Telegram Bot API",
+  "homepage": "https://github.com/SessionHu/sessnet-tg-bot#readme",
+  "bugs": {
+    "url": "https://github.com/SessionHu/sessnet-tg-bot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SessionHu/sessnet-tg-bot.git"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": "SessionHu <sessionhu@outlook.com>",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
