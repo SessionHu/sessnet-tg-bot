@@ -5,8 +5,8 @@ import dotenv from 'dotenv';
 import * as logger from './logger.ts';
 
 import { findPackageJSON } from 'node:module';
-import { resolve } from 'node:dns/promises';
-import { createConnection } from 'node:net';
+import { lookup } from 'node:dns/promises';
+import { createConnection, isIP } from 'node:net';
 import { spawn } from 'node:child_process';
 
 
@@ -18,7 +18,7 @@ function escapeHtmlText(text: string): string {
 async function ip(s: string) {
   if (!s) return 'Where... is your IP??';
   // try to resolve
-  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$|^[0-9a-f]{0,4}:[0-9a-f:]*:([0-9a-f]{0,4}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.test(s)) s = (await resolve(s))[0] || '';
+  if (!isIP(s)) s = (await lookup(s)).address || '';
   if (!s) return 'It seems not a valid IP addrsss';
   // get data
   const url = 'https://regquery.ping2.sh/ip2location/v1/query?ip=' + s;
@@ -30,6 +30,7 @@ async function ip(s: string) {
     resp.text();
 }
 
+const OUTPUT_LIMIT_LENGTH = 4095;
 
 dotenv.config();
 
@@ -107,28 +108,50 @@ bot.command('whois', async (ctx) => {
   // run
   const bfs = new Array<Buffer>;
   const cb = () => {
-    ctx.replyWithHTML(`<pre>${escapeHtmlText(Buffer.concat(bfs).toString('utf8'))}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}});
+    const txt = Buffer.concat(bfs);
+    if (txt.length > OUTPUT_LIMIT_LENGTH) {
+      ctx.sendChatAction('upload_document');
+      ctx.replyWithDocument({
+        source: txt,
+        filename: cmd.join('_') + '.txt'
+      }, {
+        caption: `Command output too long (${txt.length} > ${OUTPUT_LIMIT_LENGTH})!\nHere is your output text document.`
+      });
+    } else {
+      ctx.replyWithHTML(`<pre>${escapeHtmlText(txt.toString('utf8'))}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}});
+    }
   };
   if (usedn42) {
     const skt = createConnection({host: 'whois.dn42', port: 43});
-    skt.write(Buffer.from(cmd + '\r\n'));
+    skt.write(Buffer.from(cmd.join(' ') + '\r\n'));
     skt.on('data', (b: Buffer) => bfs.push(b));
     skt.on('close', cb);
   } else {
     const pid = spawn('whois', cmd, { shell: false });
-    let closed1 = false, closed2 = false;
     pid.stderr.on('data', (b: Buffer) => bfs.push(b));
     pid.stdout.on('data', (b: Buffer) => bfs.push(b));
-    pid.stdout.on('close', () => (closed1 = true) && closed2 && cb());
-    pid.stderr.on('close', () => (closed2 = true) && closed1 && cb());
-    pid.on('exit', (c) => c && ctx.reply('Error: process exited with ' + c));
+    pid.on('close', cb);
   }
+});
+
+bot.command('nya', (ctx) => {
+  logger.logMessage(ctx);
+  ctx.sendChatAction('typing').catch(logger.warn);
+  ctx.reply('Nya~', {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
+});
+
+bot.command(/^(icmp?|tcp?)?ping(4|6)?$/, (ctx) => {
+  logger.logMessage(ctx);
+  ctx.replyWithHTML(`You: "<code>${escapeHtmlText(ctx.message.text)}</code>"`, {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
+  // TODO:
 });
 
 bot.on(message('text'), (ctx) => {
   logger.logMessage(ctx);
   if (ctx.chat.type === 'private')
     ctx.replyWithHTML(`You: "<code>${escapeHtmlText(ctx.message.text)}</code>"`, {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
+  else
+    if (Math.random() > .8) ctx.react('🤔', true).catch(logger.warn);
 });
 
 bot.launch(() => {
