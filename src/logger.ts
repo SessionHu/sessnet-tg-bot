@@ -56,12 +56,12 @@ export function warn(...data: any[]) {
 
 export function logMessageUniversal(o: {
   date: number,
-  username?: string,
+  username?: string | undefined,
   /**
    * Type of chat, can be either “private”, “group”, “supergroup” or “channel”.
    */
   source: 'private' | 'group' | 'supergroup' | 'channel',
-  title?: string,
+  title?: string | undefined,
   /**
    * Text, Sticker, Media, etc.
    */
