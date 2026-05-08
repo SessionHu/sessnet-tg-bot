@@ -27,7 +27,7 @@ async function ip(s: string) {
     resp.text();
 }
 
-const OUTPUT_LIMIT_LENGTH = 4095;
+export const OUTPUT_LIMIT_LENGTH = 4095;
 
 dotenv.config();
 
