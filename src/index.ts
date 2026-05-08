@@ -147,17 +147,48 @@ bot.command(PING_REGEX, async (ctx) => {
   ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
 });
 
+const TRACEROUTE_REGEX = /^trace(?:route)?(4|6)?(I|U)?$/;
+bot.command(TRACEROUTE_REGEX, async (ctx) => {
+  logger.logMessage(ctx);
+  ctx.sendChatAction('typing').catch(logger.warn);
+  const res = await lg.trace(ctx.text.split(/\s+/)[1]!, ctx.match[1], ctx.match[2] === 'I' ? 'icmp' : 'udp');
+  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+});
+
+bot.command('dig', async (ctx) => {
+  logger.logMessage(ctx);
+  ctx.sendChatAction('typing').catch(logger.warn);
+  const res = await lg.dig(ctx.text.split(/\s+/).slice(1).join(' '));
+  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+});
+
+const ROUTE_REGEX = /^(?:b)?route(A)?$/;
+bot.command(ROUTE_REGEX, async (ctx) => {
+  logger.logMessage(ctx);
+  ctx.sendChatAction('typing').catch(logger.warn);
+  const res = await lg.broute(ctx.text.split(/\s+/)[1]!, ctx.match[1] === 'A');
+  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+});
+
 bot.on('callback_query', async(ctx) => {
   if (!ctx.callbackQuery.message || !('reply_to_message' in ctx.callbackQuery.message) || !('text' in ctx.callbackQuery.message.reply_to_message) || !('data' in ctx.callbackQuery)) return;
   const parts = ctx.callbackQuery.message.reply_to_message.text.split(/\s+/);
-  const cmd = parts[0]!.replace(/^\/(.+?)@.+$/, (_, p) => p);
+  const cmd = parts[0]!.replace(/^\/(.+?)(@.+)?$/, (_, p) => p);
   let matched: RegExpExecArray | null;
   if (matched = PING_REGEX.exec(cmd)) {
     const res = await lg.ping(parts[1]!, matched[1], Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
+  } else if (matched = TRACEROUTE_REGEX.exec(cmd)) {
+    const res = await lg.trace(parts[1]!, matched[1], matched[2] === 'I' ? 'icmp' : 'udp', Number(ctx.callbackQuery.data.split(':')[1]));
+    await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
+  } else if (cmd === 'dig') {
+    const res = await lg.dig(parts.slice(1).join(' '), Number(ctx.callbackQuery.data.split(':')[1]));
+    await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
+  } else if (matched = ROUTE_REGEX.exec(cmd)) {
+    const res = await lg.broute(parts[1]!, matched[1] === 'A', Number(ctx.callbackQuery.data.split(':')[1]));
+    await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
   }
 });
-
 
 bot.on(message('text'), (ctx) => {
   logger.logMessage(ctx);
