@@ -43,12 +43,15 @@ bot.start((ctx) => {
 
 bot.help((ctx) => {
   logger.logMessage(ctx);
-  ctx.replyWithMarkdownV2(
-    '/start \\- Start the bot\n' +
-    '/help \\- Show help text\n' +
-    '/about \\- Show about text\n' +
-    '/ip \\name\\|ipaddr\\ \\- Query IP location database\n' +
-    '/whois object \\- Query WHOIS database\n',
+  ctx.replyWithHTML(
+    '/start - Start the bot\n' +
+    '/help - Show help text\n' +
+    '/about - Show about text\n' +
+    '/ip name|ipaddr - Query IP location database\n' +
+    '/whois object - Query WHOIS database\n' +
+    '/ping[4|6] host - ICMP Ping\n' +
+    '/trace[route][4|6][I|U] host - Traceroute with ICMP or UDP\n' +
+    '/dig query - BIND9 lookup utility DiG',
     {reply_parameters:{message_id:ctx.message.message_id}}
   ).catch(logger.error);
 });
