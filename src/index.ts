@@ -3,17 +3,14 @@ import { message } from 'telegraf/filters';
 import dotenv from 'dotenv';
 
 import * as logger from './logger.ts';
+import * as lg from './lg.ts';
+import { escapeHtmlText } from './escape.ts';
 
 import { findPackageJSON } from 'node:module';
 import { lookup } from 'node:dns/promises';
 import { createConnection, isIP } from 'node:net';
 import { spawn } from 'node:child_process';
 
-
-const LESS_THAN_REGEX = /\</g;
-function escapeHtmlText(text: string): string {
-  return text.replace(LESS_THAN_REGEX, '&lt;');
-}
 
 async function ip(s: string) {
   if (!s) return 'Where... is your IP??';
@@ -33,6 +30,8 @@ async function ip(s: string) {
 const OUTPUT_LIMIT_LENGTH = 4095;
 
 dotenv.config();
+
+export const servers: [string, string][] = process.env.SERVERS?.split(',').map(e => e.split(';') as [string, string]) || [];
 
 export const bot = new Telegraf(process.env.BOT_TOKEN!);
 delete process.env.BOT_TOKEN;
@@ -140,11 +139,25 @@ bot.command('nya', (ctx) => {
   ctx.reply('Nya~', {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
 });
 
-bot.command(/^(icmp?|tcp?)?ping(4|6)?$/, (ctx) => {
+const PING_REGEX = /^ping(4|6)?$/;
+bot.command(PING_REGEX, async (ctx) => {
   logger.logMessage(ctx);
-  ctx.replyWithHTML(`You: "<code>${escapeHtmlText(ctx.message.text)}</code>"`, {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
-  // TODO:
+  ctx.sendChatAction('typing').catch(logger.warn);
+  const res = await lg.ping(ctx.text.split(/\s+/)[1]!, ctx.match[1]);
+  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
 });
+
+bot.on('callback_query', async(ctx) => {
+  if (!ctx.callbackQuery.message || !('reply_to_message' in ctx.callbackQuery.message) || !('text' in ctx.callbackQuery.message.reply_to_message) || !('data' in ctx.callbackQuery)) return;
+  const parts = ctx.callbackQuery.message.reply_to_message.text.split(/\s+/);
+  const cmd = parts[0]!.replace(/^\/(.+?)@.+$/, (_, p) => p);
+  let matched: RegExpExecArray | null;
+  if (matched = PING_REGEX.exec(cmd)) {
+    const res = await lg.ping(parts[1]!, matched[1], Number(ctx.callbackQuery.data.split(':')[1]));
+    await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
+  }
+});
+
 
 bot.on(message('text'), (ctx) => {
   logger.logMessage(ctx);
