@@ -51,7 +51,8 @@ bot.help((ctx) => {
     '/whois object - Query WHOIS database\n' +
     '/ping[4|6] host - ICMP Ping\n' +
     '/trace[route][4|6][I|U] host - Traceroute with ICMP or UDP\n' +
-    '/dig query - BIND9 lookup utility DiG',
+    '/dig query - BIND9 lookup utility DiG\n' +
+    '/route[A] - Show BIRD route for IP address or CIDR\n',
     {reply_parameters:{message_id:ctx.message.message_id}}
   ).catch(logger.error);
 });
