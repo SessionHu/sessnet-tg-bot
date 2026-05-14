@@ -28,9 +28,8 @@ function getServerList(serverIndex: number): InlineKeyboardButton[][] {
 
 export async function ping(dst: string, ipv?: string, serverIndex = activeServer.get()): Promise<LgResponse> {
   const sv = servers[serverIndex]!;
-  const res = await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=ping&target=${encodeURIComponent(dst)}&ipv=${ipv}`);
   return {
-    data: await res.text(),
+    data: await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=ping&target=${encodeURIComponent(dst)}&ipv=${ipv}`).then(r => r.text()).catch(e => (e instanceof Error && e.stack) || String(e)),
     list: getServerList(serverIndex,)
   };
 }
