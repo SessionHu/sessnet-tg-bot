@@ -23,7 +23,10 @@ const activeServer = (() => {
 
 function getServerList(serverIndex: number): InlineKeyboardButton[][] {
   activeServer.set(serverIndex);
-  return servers.map((e, i) => [{ text: e[1] + (i === serverIndex ? ' \u2705' : ''), callback_data: `${crypto.randomUUID()}:${i}` }]);
+  return servers.map((e, i) => [{ text: e[1] + (i === serverIndex ? ' \u2705' : ''), callback_data: `${crypto.randomUUID()}:${i}` } as InlineKeyboardButton]).concat([[
+    { text: 'Peer Info', url: 'https://dn42.xhustudio.eu.org/peering.html' },
+    { text: 'NTP Pool 42', url: 'https://ntppool42.sess.moe/' }
+  ]]);
 }
 
 export async function ping(dst: string, ipv?: string, serverIndex = activeServer.get()): Promise<LgResponse> {
