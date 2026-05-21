@@ -199,7 +199,7 @@ bot.on(message('text'), (ctx) => {
   if (ctx.chat.type === 'private')
     ctx.replyWithHTML(`You: "<code>${escapeHtmlText(ctx.message.text)}</code>"`, {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
   else
-    if (Math.random() > .8) ctx.react('🤔', true).catch(logger.warn);
+    if (Math.random() > .9) ctx.react('🤔', true).catch(logger.warn);
 });
 
 bot.launch(() => {
