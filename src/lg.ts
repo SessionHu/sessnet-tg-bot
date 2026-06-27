@@ -39,27 +39,24 @@ export async function ping(dst: string, ipv?: string, serverIndex = activeServer
 
 export async function trace(dst: string, ipv?: string, proto?: string, serverIndex = activeServer.get()): Promise<LgResponse> {
   const sv = servers[serverIndex]!;
-  const res = await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=trace&target=${encodeURIComponent(dst)}&ipv=${ipv}&proto=${proto}`);
   return {
-    data: await res.text(),
+    data: await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=trace&target=${encodeURIComponent(dst)}&ipv=${ipv}&proto=${proto}`).then(r => r.text()).catch(e => (e instanceof Error && e.stack) || String(e)),
     list: getServerList(serverIndex,)
   };
 }
 
 export async function dig(dst: string, serverIndex = activeServer.get()): Promise<LgResponse> {
   const sv = servers[serverIndex]!;
-  const res = await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=dig&target=${encodeURIComponent(dst)}`);
   return {
-    data: await res.text(),
+    data: await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=dig&target=${encodeURIComponent(dst)}`).then(r => r.text()).catch(e => (e instanceof Error && e.stack) || String(e)),
     list: getServerList(serverIndex,)
   };
 }
 
 export async function broute(dst: string, all = false, serverIndex = activeServer.get()): Promise<LgResponse> {
   const sv = servers[serverIndex]!;
-  const res = await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=broute&target=${encodeURIComponent(dst || '0.0.0.0')}&all=${all}`);
   return {
-    data: await res.text(),
+    data: await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=broute&target=${encodeURIComponent(dst || '0.0.0.0')}&all=${all}`).then(r => r.text()).catch(e => (e instanceof Error && e.stack) || String(e)),
     list: getServerList(serverIndex,)
   };
 }
