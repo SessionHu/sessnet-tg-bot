@@ -52,7 +52,8 @@ bot.help((ctx) => {
     '/ping[4|6] host - ICMP Ping\n' +
     '/trace[route][4|6][I|U] host - Traceroute with ICMP or UDP\n' +
     '/dig query - BIND9 lookup utility DiG\n' +
-    '/route[A] - Show BIRD route for IP address or CIDR\n',
+    '/route[A] - Show BIRD route for IP address or CIDR\n' +
+    '/topology - Show BIRD OSPF topology graph\n',
     {reply_parameters:{message_id:ctx.message.message_id}}
   ).catch(logger.error);
 });
@@ -174,7 +175,20 @@ bot.command(ROUTE_REGEX, async (ctx) => {
   ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
 });
 
-bot.on('callback_query', async(ctx) => {
+bot.command('topology', async (ctx) => {
+  logger.logMessage(ctx);
+  ctx.sendChatAction('typing').catch(logger.warn);
+  const res = await lg.topology();
+  bot.telegram.sendPhoto(ctx.chat.id, res.data, {
+    reply_parameters: { 
+      message_id: ctx.message.message_id,
+      allow_sending_without_reply: false,
+    },
+    reply_markup: { inline_keyboard: res.list },
+  }).catch(logger.error);
+});
+
+bot.on('callback_query', async (ctx) => {
   if (!ctx.callbackQuery.message || !('reply_to_message' in ctx.callbackQuery.message) || !('text' in ctx.callbackQuery.message.reply_to_message) || !('data' in ctx.callbackQuery)) return;
   const parts = ctx.callbackQuery.message.reply_to_message.text.split(/\s+/);
   const cmd = parts[0]!.replace(/^\/(.+?)(@.+)?$/, (_, p) => p);
@@ -191,6 +205,9 @@ bot.on('callback_query', async(ctx) => {
   } else if (matched = ROUTE_REGEX.exec(cmd)) {
     const res = await lg.broute(parts[1]!, matched[1] === 'A', Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
+  } else if (cmd === 'topology') {
+    const res = await lg.topology(Number(ctx.callbackQuery.data.split(':')[1]));
+    await ctx.editMessageMedia({ type: 'photo', media: res.data }, { reply_markup: { inline_keyboard: res.list } });
   }
 });
 

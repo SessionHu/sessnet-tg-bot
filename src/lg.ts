@@ -1,8 +1,13 @@
-import type { InlineKeyboardButton } from 'telegraf/types';
+import type { InlineKeyboardButton, InputFile } from 'telegraf/types';
 import { servers } from './index.ts';
 
 export interface LgResponse {
   data: string,
+  list: InlineKeyboardButton[][]
+}
+
+export interface LgResponsePhoto {
+  data: InputFile,
   list: InlineKeyboardButton[][]
 }
 
@@ -57,6 +62,18 @@ export async function broute(dst: string, all = false, serverIndex = activeServe
   const sv = servers[serverIndex]!;
   return {
     data: await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=broute&target=${encodeURIComponent(dst || '0.0.0.0')}&all=${all}`).then(r => r.text()).catch(e => (e instanceof Error && e.stack) || String(e)),
+    list: getServerList(serverIndex,)
+  };
+}
+
+export async function topology(serverIndex = activeServer.get()): Promise<LgResponsePhoto> {
+  const sv = servers[serverIndex]!;
+  const data = await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=topology`).then(r => r.text());
+	return {
+    data: {
+      source: await (await import('./topology.ts')).default(data),
+      filename: 'topology.png'
+    },
     list: getServerList(serverIndex,)
   };
 }
