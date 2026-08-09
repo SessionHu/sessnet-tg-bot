@@ -1,4 +1,5 @@
-import type { InlineKeyboardButton, InputFile } from 'telegraf/types';
+import { InputFile } from 'grammy';
+import type { InlineKeyboardButton } from 'grammy/types';
 import { servers } from './index.ts';
 
 export interface LgResponse {
@@ -70,10 +71,7 @@ export async function topology(serverIndex = activeServer.get()): Promise<LgResp
   const sv = servers[serverIndex]!;
   const data = await fetch(`https://${sv[0]}/cgi-bin/lgmain?action=topology`).then(r => r.text());
 	return {
-    data: {
-      source: await (await import('./topology.ts')).default(data),
-      filename: 'topology.png'
-    },
+    data: new InputFile(await (await import('./topology.ts')).default(data), 'topology.png'),
     list: getServerList(serverIndex,)
   };
 }

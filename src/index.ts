@@ -1,5 +1,4 @@
-import { Telegraf } from 'telegraf';
-import { message } from 'telegraf/filters';
+import { Bot, InputFile } from 'grammy';
 import dotenv from 'dotenv';
 
 import * as logger from './logger.ts';
@@ -18,7 +17,8 @@ async function ip(s: string) {
   if (!isIP(s)) s = (await lookup(s)).address || '';
   if (!s) return 'It seems not a valid IP addrsss';
   // get data
-  const url = 'https://regquery.ping2.sh/ip2location/v1/query?ip=' + s;
+  //const url = 'https://regquery.ping2.sh/ip2location/v1/query?ip=' + s;
+  const url = 'https://ip.shakaianee.top/' + s + '?f=json';
   logger.info('[inet] [ip]', url);
   const resp = await fetch(url);
   return resp.headers.get('content-type')?.startsWith('application/json') ?
@@ -33,17 +33,17 @@ dotenv.config();
 
 export const servers: [string, string][] = process.env.SERVERS?.split(',').map(e => e.split(';') as [string, string]) || [];
 
-export const bot = new Telegraf(process.env.BOT_TOKEN!);
+export const bot = new Bot(process.env.BOT_TOKEN!);
 delete process.env.BOT_TOKEN;
 
-bot.start((ctx) => {
+bot.command('start', (ctx) => {
   logger.logMessage(ctx);
-  ctx.reply(`Welcome to ${ctx.botInfo.first_name}! 🚀\nSend /help to get help!`);
+  ctx.reply(`Welcome to ${ctx.me.first_name}! 🚀\nSend /help to get help!`);
 });
 
-bot.help((ctx) => {
+bot.command('help', (ctx) => {
   logger.logMessage(ctx);
-  ctx.replyWithHTML(
+  ctx.reply(
     '/start - Start the bot\n' +
     '/help - Show help text\n' +
     '/about - Show about text\n' +
@@ -54,7 +54,10 @@ bot.help((ctx) => {
     '/dig query - BIND9 lookup utility DiG\n' +
     '/route[A] - Show BIRD route for IP address or CIDR\n' +
     '/topology - Show BIRD OSPF topology graph\n',
-    {reply_parameters:{message_id:ctx.message.message_id}}
+    {
+      reply_parameters: { message_id: ctx.msg.message_id },
+      parse_mode: 'HTML'
+    }
   ).catch(logger.error);
 });
 
@@ -66,20 +69,20 @@ bot.command('about', async (ctx) => {
     if (k === 'scripts' || k === 'devDependencies' || k === 'dependencies' || k === 'main') continue;
     res += `<strong>${k.replace(/^(.)/, c => c.toUpperCase())}</strong>: ${escapeHtmlText(typeof v !== 'string' ? JSON.stringify(v) : v)}\n`
   }
-  await ctx.replyWithHTML(res || 'Please star: https://github.com/SessionHu/sessnet-tg-bot', {reply_parameters:{message_id:ctx.message.message_id}});
+  await ctx.reply(res || 'Please star: https://github.com/SessionHu/sessnet-tg-bot', {reply_parameters:{message_id:ctx.msg.message_id},parse_mode:'HTML'});
 });
 
 bot.command('ip', async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
   try {
-    const r = await ip(ctx.text.split(/\s+/)[1] || '');
+    const r = await ip(ctx.msg.text.split(/\s+/)[1] || '');
     if (typeof r === 'string') {
-      ctx.replyWithHTML(r.replace(/\<br(.*\/)?\>/g, '\n'), {reply_parameters:{message_id:ctx.message.message_id}});
+      ctx.reply(r.replace(/\<br(.*\/)?\>/g, '\n'), {reply_parameters:{message_id:ctx.msg.message_id},parse_mode:'HTML'});
     } else if (typeof r === 'object') {
-      ctx.replyWithMarkdownV2('```json\n' + JSON.stringify(r, null, 2) + '\n```', {reply_parameters:{message_id:ctx.message.message_id}});
+      ctx.reply('```json\n' + JSON.stringify(r, null, 2) + '\n```', {reply_parameters:{message_id:ctx.msg.message_id},parse_mode:'MarkdownV2'});
     } else {
-      ctx.reply('Unexpected result: ' + r, {reply_parameters:{message_id:ctx.message.message_id}});
+      ctx.reply('Unexpected result: ' + r, {reply_parameters:{message_id:ctx.msg.message_id}});
     }
   } catch (e) {
     ctx.reply(e instanceof Error && e.stack ? e.stack : String(e));
@@ -89,10 +92,10 @@ bot.command('ip', async (ctx) => {
 
 bot.command('whois', async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
-  const cmd = ctx.text.split(/\s+/).slice(1);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
+  const cmd = ctx.msg.text.split(/\s+/).slice(1);
   if (!cmd.length) {
-    return ctx.reply('What do you want to query?', {reply_parameters:{message_id:ctx.message.message_id}});
+    return ctx.reply('What do you want to query?', {reply_parameters:{message_id:ctx.msg.message_id}});
   }
   // choose whois type
   let usedn42 = false;
@@ -114,15 +117,12 @@ bot.command('whois', async (ctx) => {
   const cb = () => {
     const txt = Buffer.concat(bfs);
     if (txt.length > OUTPUT_LIMIT_LENGTH) {
-      ctx.sendChatAction('upload_document');
-      ctx.replyWithDocument({
-        source: txt,
-        filename: cmd.join('_') + '.txt'
-      }, {
+      ctx.replyWithChatAction('upload_document');
+      ctx.replyWithDocument(new InputFile(txt, cmd.join('_') + '.txt'), {
         caption: `Command output too long (${txt.length} > ${OUTPUT_LIMIT_LENGTH})!\nHere is your output text document.`
       });
     } else {
-      ctx.replyWithHTML(`<pre>${escapeHtmlText(txt.toString('utf8'))}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}});
+      ctx.reply(`<pre>${escapeHtmlText(txt.toString('utf8'))}</pre>`, {reply_parameters:{message_id:ctx.msg.message_id},parse_mode:'HTML'});
     }
   };
   if (usedn42) {
@@ -140,49 +140,68 @@ bot.command('whois', async (ctx) => {
 
 bot.command('nya', (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
-  ctx.reply('Nya~', {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
+  ctx.reply('Nya~', {reply_parameters:{message_id:ctx.msg.message_id}}).catch(logger.error);
 });
 
-const PING_REGEX = /^ping(4|6)?$/;
-bot.command(PING_REGEX, async (ctx) => {
+const PING_REGEX = /^\/ping(4|6)?(@.+)?$/;
+bot.command(['ping', 'ping4', 'ping6'], async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
-  const res = await lg.ping(ctx.text.split(/\s+/)[1]!, ctx.match[1]);
-  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
+  const res = await lg.ping(ctx.match, PING_REGEX.exec(ctx.msg.text.split(/\s+/)[0]!)!.at(1));
+  ctx.reply(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.msg.message_id}, reply_markup:{inline_keyboard:res.list},parse_mode:'HTML'}).catch(logger.error);
 });
 
-const TRACEROUTE_REGEX = /^trace(?:route)?(4|6)?(I|U)?$/;
-bot.command(TRACEROUTE_REGEX, async (ctx) => {
+const TRACEROUTE_REGEX = /^\/trace(?:route)?(4|6)?(I|U)?(@.+)?$/;
+bot.command([
+  'trace4',
+  'trace6',
+  'trace4I',
+  'trace6I',
+  'trace4U',
+  'trace6U',
+  'traceroute4',
+  'traceroute6',
+  'traceroute4I',
+  'traceroute6I',
+  'traceroute4U',
+  'traceroute6U',
+], async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
-  const res = await lg.trace(ctx.text.split(/\s+/)[1]!, ctx.match[1], ctx.match[2] === 'I' ? 'icmp' : 'udp');
-  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
+  const match = TRACEROUTE_REGEX.exec(ctx.msg.text.split(/\s+/)[0]!)!;
+  const res = await lg.trace(ctx.msg.text.split(/\s+/)[1]!, match[1], match[2] === 'I' ? 'icmp' : 'udp');
+  ctx.reply(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.msg.message_id}, reply_markup:{inline_keyboard:res.list},parse_mode:'HTML'}).catch(logger.error);
 });
 
 bot.command('dig', async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
-  const res = await lg.dig(ctx.text.split(/\s+/).slice(1).join(' '));
-  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
+  const res = await lg.dig(ctx.msg.text.split(/\s+/).slice(1).join(' '));
+  ctx.reply(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.msg.message_id}, reply_markup:{inline_keyboard:res.list},parse_mode:'HTML'}).catch(logger.error);
 });
 
-const ROUTE_REGEX = /^(?:b)?route(A)?$/;
-bot.command(ROUTE_REGEX, async (ctx) => {
+const ROUTE_REGEX = /^\/(?:b)?route(A)?(@.+)?$/;
+bot.command([
+	'route',
+	'broute',
+	'routeA',
+	'brouteA',
+], async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
-  const res = await lg.broute(ctx.text.split(/\s+/)[1]!, ctx.match[1] === 'A');
-  ctx.replyWithHTML(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.message.message_id}, reply_markup:{inline_keyboard:res.list}}).catch(logger.error);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
+  const match = ROUTE_REGEX.exec(ctx.msg.text.split(/\s+/)[0]!)!;
+  const res = await lg.broute(ctx.match, match[1] === 'A');
+  ctx.reply(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.msg.message_id}, reply_markup:{inline_keyboard:res.list},parse_mode:'HTML'}).catch(logger.error);
 });
 
 bot.command('topology', async (ctx) => {
   logger.logMessage(ctx);
-  ctx.sendChatAction('typing').catch(logger.warn);
+  ctx.replyWithChatAction('typing').catch(logger.warn);
   const res = await lg.topology();
-  bot.telegram.sendPhoto(ctx.chat.id, res.data, {
+  ctx.replyWithPhoto(res.data, {
     reply_parameters: { 
-      message_id: ctx.message.message_id,
-      allow_sending_without_reply: false,
+      message_id: ctx.msg.message_id,
     },
     reply_markup: { inline_keyboard: res.list },
   }).catch(logger.error);
@@ -191,47 +210,46 @@ bot.command('topology', async (ctx) => {
 bot.on('callback_query', async (ctx) => {
   if (!ctx.callbackQuery.message || !('reply_to_message' in ctx.callbackQuery.message) || !('text' in ctx.callbackQuery.message.reply_to_message) || !('data' in ctx.callbackQuery)) return;
   const parts = ctx.callbackQuery.message.reply_to_message.text.split(/\s+/);
-  const cmd = parts[0]!.replace(/^\/(.+?)(@.+)?$/, (_, p) => p);
   let matched: RegExpExecArray | null;
-  if (matched = PING_REGEX.exec(cmd)) {
+  if (matched = PING_REGEX.exec(parts[0]!)) {
     const res = await lg.ping(parts[1]!, matched[1], Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
-  } else if (matched = TRACEROUTE_REGEX.exec(cmd)) {
+  } else if (matched = TRACEROUTE_REGEX.exec(parts[0]!)) {
     const res = await lg.trace(parts[1]!, matched[1], matched[2] === 'I' ? 'icmp' : 'udp', Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
-  } else if (cmd === 'dig') {
+  } else if (parts[0]!.match(/^\/dig(@.+)?$/)) {
     const res = await lg.dig(parts.slice(1).join(' '), Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
-  } else if (matched = ROUTE_REGEX.exec(cmd)) {
+  } else if (matched = ROUTE_REGEX.exec(parts[0]!)) {
     const res = await lg.broute(parts[1]!, matched[1] === 'A', Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageText(`<pre>${escapeHtmlText(res.data)}</pre>`, {parse_mode: 'HTML', reply_markup:{inline_keyboard:res.list}});
-  } else if (cmd === 'topology') {
+  } else if (parts[0]!.match(/^\/topology(@.+)?$/)) {
     const res = await lg.topology(Number(ctx.callbackQuery.data.split(':')[1]));
     await ctx.editMessageMedia({ type: 'photo', media: res.data }, { reply_markup: { inline_keyboard: res.list } });
   }
 });
 
-bot.on(message('text'), (ctx) => {
+bot.on('message:text', (ctx) => {
   logger.logMessage(ctx);
   if (ctx.chat.type === 'private')
-    ctx.replyWithHTML(`You: "<code>${escapeHtmlText(ctx.message.text)}</code>"`, {reply_parameters:{message_id:ctx.message.message_id}}).catch(logger.error);
+    ctx.reply(`You: "<code>${escapeHtmlText(ctx.message.text)}</code>"`, {reply_parameters:{message_id:ctx.message.message_id},parse_mode:'HTML'}).catch(logger.error);
   else
-    if (Math.random() > .9) ctx.react('🤔', true).catch(logger.warn);
+    if (Math.random() > .9) ctx.react('🤔', { is_big: true }).catch(logger.warn);
 });
 
-bot.launch(() => {
-  logger.info('Bot launched');
-});
-
-bot.catch((err, ctx) => {
-  logger.error(`[${ctx.updateType}] error occurred:`, err);
-  ctx[ctx.inlineMessageId ? 'editMessageText' : 'reply'](`[${ctx.updateType}] error occurred:\n${String(err)}`);
+bot.catch((err) => {
+  const ctx = err.ctx;
+  logger.error(`[${ctx.update.update_id}] error occurred:`, err);
+  ctx[ctx.inlineMessageId ? 'editMessageText' : 'reply'](`[${ctx.update.update_id}] error occurred:\n${String(err)}`);
 });
 
 const onexit = async (signal: NodeJS.Signals) => {
   logger.warn('Received Signal:', signal);
-  bot.stop(signal);
+  bot.stop()
 }
 process.once('SIGTERM', onexit);
 process.once('SIGINT', onexit);
 process.once('SIGHUP', onexit);
+
+bot.start();
+logger.info('Bot starting...');

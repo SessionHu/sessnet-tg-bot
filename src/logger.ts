@@ -1,7 +1,6 @@
-// Migrated from https://github.com/SessionHu/sino-tg-bot/blob/6847ed37e2307d8c61ecf529c4f0e5c4cd2ac87f/src/logger.ts
+// Originally migrated from https://github.com/SessionHu/sino-tg-bot/blob/6847ed37e2307d8c61ecf529c4f0e5c4cd2ac87f/src/logger.ts
 // MIT License. Copyright (c) 2025 SessionHu
-import type { Context } from 'telegraf';
-import type { Message, Update } from 'telegraf/types';
+import type { Context } from 'grammy';
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' |'FATAL';
 
@@ -76,14 +75,15 @@ export function logMessageUniversal(o: {
   info(...p);
 }
 
-export function logMessage(ctx: Context<Update.MessageUpdate<Message>>) {
+export function logMessage(ctx: Context) {
+  if (!ctx.message || !ctx.chat) return;
   let typ: string, text: string;
   if ('sticker' in ctx.message) {
     typ = 'sticker';
     text = ctx.message.sticker.emoji || ctx.message.sticker.file_id
   } else {
     typ = 'text';
-    text = ctx.text ?? ''
+    text = ctx.message.text ?? ''
   }
   logMessageUniversal({
     date: ctx.message.date,
