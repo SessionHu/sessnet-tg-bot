@@ -154,6 +154,9 @@ bot.command(['ping', 'ping4', 'ping6'], async (ctx) => {
 
 const TRACEROUTE_REGEX = /^\/trace(?:route)?(4|6)?(I|U)?(@.+)?$/;
 bot.command([
+  'trace',
+  'traceI',
+  'traceU',
   'trace4',
   'trace6',
   'trace4I',
@@ -170,7 +173,7 @@ bot.command([
   logger.logMessage(ctx);
   ctx.replyWithChatAction('typing').catch(logger.warn);
   const match = TRACEROUTE_REGEX.exec(ctx.msg.text.split(/\s+/)[0]!)!;
-  const res = await lg.trace(ctx.msg.text.split(/\s+/)[1]!, match[1], match[2] === 'I' ? 'icmp' : 'udp');
+  const res = await lg.trace(ctx.match, match[1], match[2] === 'I' ? 'icmp' : 'udp');
   ctx.reply(`<pre>${escapeHtmlText(res.data)}</pre>`, {reply_parameters:{message_id:ctx.msg.message_id}, reply_markup:{inline_keyboard:res.list},parse_mode:'HTML'}).catch(logger.error);
 });
 
