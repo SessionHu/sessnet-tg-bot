@@ -240,10 +240,10 @@ bot.on('message:text', (ctx) => {
     if (Math.random() > .9) ctx.react('🤔', { is_big: true }).catch(logger.warn);
 });
 
-bot.catch((err) => {
-  const ctx = err.ctx;
-  logger.error(`[${ctx.update.update_id}] error occurred:`, err);
-  ctx[ctx.inlineMessageId ? 'editMessageText' : 'reply'](`[${ctx.update.update_id}] error occurred:\n${String(err)}`);
+bot.catch((e) => {
+  const ctx = e.ctx;
+  logger.error(`[${ctx.update.update_id}] error occurred:`, e.error);
+  ctx[ctx.inlineMessageId ? 'editMessageText' : 'reply'](`[${ctx.update.update_id}] error occurred:\n${String(e)}`);
 });
 
 const onexit = async (signal: NodeJS.Signals) => {
